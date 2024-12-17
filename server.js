@@ -12,7 +12,7 @@ const pool = new Pool({
     user: 'postgres',         // Your database username
     host: '127.0.0.1',        // Host of your database
     database: 'postgres',     // Database name
-    password: 'Konetieto',         // Database password
+    password: 'Sandels',         // Database password
     port: 5432,               // PostgreSQL port
 });
 
@@ -115,6 +115,63 @@ app.get('/review/:reviewid', async (req, res) => {
         res.status(500).json({ error: 'Database query failed', details: error.message }); // Return 500 on error
     }
 });
+
+app.post('/movie', async (req, res) => {
+    // Ota vastaan elokuvan tiedot pyynnön rungosta
+    const { movieid, genreid, moviename, movieyear } = req.body;
+
+    try {
+        // Lisää uusi elokuva tietokantaan
+        const result = await pool.query(
+            `INSERT INTO "movie" ("movieid", "genreid", "moviename", "movieyear") 
+            VALUES ($1, $2, $3, $4) RETURNING *`,
+            [movieid, genreid, moviename, movieyear]
+        );
+
+        // Palauta onnistumisviesti ja lisätty elokuva
+        res.status(201).json({ 
+            message: 'Movie added successfully!', 
+            movie: result.rows[0] 
+        });
+    } catch (error) {
+        // Käsittele virheet
+        console.error('Error adding movie:', error.message);
+        res.status(500).json({ 
+            error: 'Failed to add movie', 
+            details: error.message 
+        });
+    }
+})
+
+// DELETE-reitti elokuvan poistamiseen movieid:n perusteella
+app.delete('/movie/:movieid', async (req, res) => {
+    const movieid = req.params.movieid; // Poimitaan movieid URL:sta
+
+    try {
+        // Suoritetaan DELETE-kysely tietokannassa
+        const result = await pool.query('DELETE FROM "movie" WHERE "movieid" = $1 RETURNING *', [movieid]);
+
+        if (result.rowCount > 0) {
+            // Jos elokuva löytyi ja poistettiin
+            res.json({
+                message: 'Movie deleted successfully!',
+                deletedMovie: result.rows[0] // Palautetaan poistettu elokuva vastauksessa
+            });
+        } else {
+            // Jos elokuvaa ei löytynyt
+            res.status(404).json({ error: 'Movie not found' });
+        }
+    } catch (error) {
+        // Jos tapahtui virhe
+        console.error('Error deleting movie:', error.message);
+        res.status(500).json({ 
+            error: 'Failed to delete movie', 
+            details: error.message 
+        });
+    }
+});
+
+
 
 
 
